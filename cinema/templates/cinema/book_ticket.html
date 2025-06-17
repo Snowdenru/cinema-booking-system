@@ -1,0 +1,203 @@
+{% extends 'cinema/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Бронирование билета - {{ session.movie.title }} {{ session.start_time|time:"H:i" }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">Бронирование билета</h2>
+                </div>
+                <div class="card-body">
+                    <!-- Информация о сеансе -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <img src="{{ session.movie.poster.url }}" class="img-fluid rounded" alt="{{ session.movie.title }}">
+                        </div>
+                        <div class="col-md-8">
+                            <h3>{{ session.movie.title }}</h3>
+                            <ul class="list-unstyled">
+                                <li><strong>Дата и время:</strong> {{ session.start_time|date:"l, j E" }}, {{ session.start_time|time:"H:i" }}</li>
+                                <li><strong>Зал:</strong> {{ session.hall.name }}</li>
+                                <li><strong>Продолжительность:</strong> {{ session.movie.duration }} мин.</li>
+                                <li><strong>Цена билета:</strong> {{ session.price }} ₽</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Форма бронирования -->
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <h4 class="mb-3">Выберите место</h4>
+                            
+                            <!-- Отображение схемы зала -->
+                            <div class="text-center mb-3">
+                                <div class="d-inline-block p-2 bg-light rounded">
+                                    <div class="screen mb-3 p-2 bg-dark text-white">Экран</div>
+                                    
+                                    <!-- Карта мест -->
+                                    <div id="seat-map" class="seat-map mb-3"></div>
+                                    
+                                    <!-- Легенда -->
+                                    <div class="d-flex justify-content-center gap-3">
+                                        <div class="d-flex align-items-center">
+                                            <div class="seat seat-available me-2"></div>
+                                            <small>Свободно</small>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <div class="seat seat-taken me-2"></div>
+                                            <small>Занято</small>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <div class="seat seat-selected me-2"></div>
+                                            <small>Выбрано</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Скрытое поле с выбранным местом -->
+                            {{ form.seat|as_crispy_field }}
+                        </div>
+                        
+                        <!-- Кнопки управления -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'movie_detail' session.movie.id %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Назад к фильму
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-ticket-perforated"></i> Подтвердить бронирование
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Скрытый элемент с занятыми местами в правильном JSON формате -->
+<div id="taken_seats" style="display: none;">{{ taken_seats|json_script:"taken-seats-data" }}</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+<!-- Скрипт для отображения схемы мест -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Получаем данные о занятых местах через json_script
+    const takenSeatsElement = document.getElementById('taken-seats-data');
+    const takenSeats = takenSeatsElement ? JSON.parse(takenSeatsElement.textContent) : [];
+    
+    const seatMap = document.getElementById('seat-map');
+    const seatSelect = document.getElementById('id_seat');
+    
+    // Создаем схему зала (5 рядов A-E по 10 мест)
+    for (let row = 1; row <= 5; row++) {
+        const rowLetter = String.fromCharCode(64 + row); // A-E
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'd-flex justify-content-center mb-2';
+        
+        for (let seatNum = 1; seatNum <= 10; seatNum++) {
+            const seatValue = `${rowLetter}${seatNum}`;
+            const seatElement = document.createElement('div');
+            seatElement.className = 'seat mx-1';
+            seatElement.textContent = seatNum;
+            seatElement.dataset.value = seatValue;
+            
+            // Проверяем занятость места
+            if (takenSeats.includes(seatValue)) {
+                seatElement.classList.add('seat-taken');
+            } else {
+                seatElement.classList.add('seat-available');
+                
+                // Обработчик выбора места
+                seatElement.addEventListener('click', function() {
+                    // Снимаем выделение со всех мест
+                    document.querySelectorAll('.seat').forEach(s => {
+                        s.classList.remove('seat-selected');
+                    });
+                    
+                    // Выделяем выбранное место
+                    this.classList.add('seat-selected');
+                    seatSelect.value = this.dataset.value;
+                });
+            }
+            
+            rowDiv.appendChild(seatElement);
+        }
+        
+        // Добавляем букву ряда слева
+        const rowLabel = document.createElement('div');
+        rowLabel.className = 'me-2 fw-bold align-self-center';
+        rowLabel.textContent = rowLetter;
+        rowDiv.prepend(rowLabel);
+        
+        seatMap.appendChild(rowDiv);
+    }
+    
+    // Автовыбор первого свободного места
+    const firstAvailableSeat = document.querySelector('.seat-available:not(.seat-taken)');
+    if (firstAvailableSeat && !seatSelect.value) {
+        firstAvailableSeat.click();
+    }
+});
+</script>
+
+<style>
+/* Стили для схемы мест */
+.seat {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.seat-available {
+    background-color: #28a745;
+    color: white;
+}
+
+.seat-available:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
+
+.seat-taken {
+    background-color: #dc3545;
+    color: white;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.seat-selected {
+    background-color: #007bff;
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 0 8px rgba(0,0,0,0.4);
+}
+
+.screen {
+    width: 80%;
+    margin: 0 auto;
+    text-align: center;
+    border-radius: 4px;
+}
+
+/* Скрываем стандартный select */
+#div_id_seat {
+    display: none;
+}
+</style>
+{% endblock %}

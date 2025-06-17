@@ -1,0 +1,206 @@
+{% extends 'cinema/base.html' %}
+{% load static %}
+
+{% block title %}Личный кабинет - {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Боковая панель профиля -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Мой профиль</h3>
+                </div>
+                <div class="card-body text-center">
+                    {% if user.avatar %}
+                        <img src="{{ user.avatar.url }}" class="rounded-circle mb-3" width="150" height="150" alt="Аватар">
+                    {% else %}
+                        <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mb-3" style="width: 150px; height: 150px; margin: 0 auto;">
+                            <span class="text-white" style="font-size: 3rem;">{{ user.username|first|upper }}</span>
+                        </div>
+                    {% endif %}
+                    
+                    <h4>{{ user.username }}</h4>
+                    {% if user.first_name or user.last_name %}
+                        <p class="mb-1">{{ user.first_name }} {{ user.last_name }}</p>
+                    {% endif %}
+                    {% if user.email %}
+                        <p class="text-muted mb-1">{{ user.email }}</p>
+                    {% endif %}
+                    {% if user.phone %}
+                        <p class="mb-3">{{ user.phone }}</p>
+                    {% endif %}
+                    
+                    <a href="{% url 'password_change' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-key"></i> Сменить пароль
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Основной контент - история бронирований -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">Мои бронирования</h3>
+                        <span class="badge bg-light text-dark">{{ bookings.count }}</span>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    {% if bookings %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Фильм</th>
+                                        <th>Дата и время</th>
+                                        <th>Зал</th>
+                                        <th>Место</th>
+                                        <th>Статус</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for booking in bookings %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                {% if booking.session.movie.poster %}
+                                                    <img src="{{ booking.session.movie.poster.url }}" class="rounded me-2" width="40" height="60" alt="{{ booking.session.movie.title }}">
+                                                {% endif %}
+                                                <span>{{ booking.session.movie.title }}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {{ booking.session.start_time|date:"d.m.Y" }}<br>
+                                            {{ booking.session.start_time|time:"H:i" }}
+                                        </td>
+                                        <td>{{ booking.session.hall.name }}</td>
+                                        <td>{{ booking.seat }}</td>
+                                        <td>
+                                            {% if booking.status == 'confirmed' %}
+                                                <span class="badge bg-success">Подтверждено</span>
+                                            {% elif booking.status == 'canceled' %}
+                                                <span class="badge bg-secondary">Отменено</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">В обработке</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if booking.status == 'confirmed' %}
+                                                <a href="{% url 'cancel_booking' booking.id %}" class="btn btn-sm btn-outline-danger" title="Отменить">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </a>
+                                            {% endif %}
+                                            <a href="{% url 'movie_detail' booking.session.movie.id %}" class="btn btn-sm btn-outline-primary" title="Подробнее">
+                                                <i class="bi bi-info-circle"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Фильтры бронирований -->
+                        <div class="d-flex justify-content-end mb-3">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="?status=all" class="btn btn-outline-primary {% if request.GET.status == 'all' or not request.GET.status %}active{% endif %}">
+                                    Все
+                                </a>
+                                <a href="?status=confirmed" class="btn btn-outline-success {% if request.GET.status == 'confirmed' %}active{% endif %}">
+                                    Подтвержденные
+                                </a>
+                                <a href="?status=canceled" class="btn btn-outline-secondary {% if request.GET.status == 'canceled' %}active{% endif %}">
+                                    Отмененные
+                                </a>
+                                <a href="?status=pending" class="btn btn-outline-warning {% if request.GET.status == 'pending' %}active{% endif %}">
+                                    В обработке
+                                </a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Фильтры бронирований -->
+                        <div class="d-flex justify-content-end mb-3">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="?status=all" class="btn btn-outline-primary {% if request.GET.status == 'all' or not request.GET.status %}active{% endif %}">
+                                    Все
+                                </a>
+                                <a href="?status=confirmed" class="btn btn-outline-success {% if request.GET.status == 'confirmed' %}active{% endif %}">
+                                    Подтвержденные
+                                </a>
+                                <a href="?status=canceled" class="btn btn-outline-secondary {% if request.GET.status == 'canceled' %}active{% endif %}">
+                                    Отмененные
+                                </a>
+                                <a href="?status=pending" class="btn btn-outline-warning {% if request.GET.status == 'pending' %}active{% endif %}">
+                                    В обработке
+                                </a>
+                            </div>
+                        </div>
+                        <div class="alert alert-info text-center">
+                            <i class="bi bi-info-circle-fill"></i> У вас пока нет бронирований.
+                            <a href="{% url 'home' %}" class="alert-link">Посмотреть афишу</a>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Статистика -->
+                <div class="card-footer">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="h5 mb-0">{{ stats.confirmed }}</div>
+                            <small class="text-muted">Подтверждено</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h5 mb-0">{{ stats.canceled }}</div>
+                            <small class="text-muted">Отменено</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h5 mb-0">{{ stats.pending }}</div>
+                            <small class="text-muted">В обработке</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+<!-- Стили для таблицы -->
+<style>
+    .table-hover tbody tr:hover {
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+    
+    .table img {
+        object-fit: cover;
+    }
+    
+    .badge {
+        font-size: 0.85em;
+        font-weight: normal;
+    }
+    
+    .btn-group .btn {
+        border-radius: 0.25rem !important;
+    }
+    
+    .btn-group .btn:first-child {
+        border-top-left-radius: 0.25rem !important;
+        border-bottom-left-radius: 0.25rem !important;
+    }
+    
+    .btn-group .btn:last-child {
+        border-top-right-radius: 0.25rem !important;
+        border-bottom-right-radius: 0.25rem !important;
+    }
+</style>
+{% endblock %}

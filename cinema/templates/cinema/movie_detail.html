@@ -1,0 +1,163 @@
+{% extends 'cinema/base.html' %}
+{% load static %}
+
+{% block title %}{{ movie.title }} - Кинотеатр{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <!-- Постер фильма -->
+        <div class="col-md-4">
+            <img src="{{ movie.poster.url }}" class="img-fluid rounded movie-poster" alt="{{ movie.title }}">
+        </div>
+        
+        <!-- Информация о фильме -->
+        <div class="col-md-8">
+            <h1 class="mb-3">{{ movie.title }}</h1>
+            
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                {% for genre in movie.genres.all %}
+                    <span class="badge bg-secondary">{{ genre.name }}</span>
+                {% endfor %}
+                {% if movie.rating %}
+                    <span class="badge bg-warning text-dark">{{ movie.rating }}/10</span>
+                {% endif %}
+                <span class="badge bg-info text-dark">{{ movie.duration }} мин.</span>
+                <span class="badge bg-light text-dark">{{ movie.release_date.year }}</span>
+            </div>
+            
+            <div class="mb-4">
+                <h4>Описание</h4>
+                <p>{{ movie.description }}</p>
+            </div>
+            
+            <div class="row">
+                <!-- Режиссер -->
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Режиссер</h5>
+                        </div>
+                        <div class="card-body d-flex align-items-center">
+                            {% if movie.directors.photo %}
+                                <img src="{{ movie.directors.photo.url }}" class="rounded me-3" width="80" height="80" alt="{{ movie.director }}">
+                            {% endif %}
+                            <div>
+                                <h6 class="card-title">{{ movie.directors }}</h6>
+                                {% if movie.directors.bio %}
+                                    <p class="card-text small text-muted">{{ movie.directors.bio|truncatewords:20 }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Актеры -->
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">В главных ролях</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row row-cols-2 row-cols-md-3 g-2">
+                                {% for actor in movie.actors.all|slice:":6" %}
+                                    <div class="col text-center">
+                                        {% if actor.photo %}
+                                            <img src="{{ actor.photo.url }}" class="rounded-circle mb-1" width="50" height="50" alt="{{ actor }}" title="{{ actor }}">
+                                        {% endif %}
+                                        <p class="small mb-0">{{ actor.first_name }}<br>{{ actor.last_name }}</p>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            {% if movie.actors.count > 6 %}
+                                <p class="small text-muted mt-2 mb-0">+{{ movie.actors.count|add:"-6" }} других</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Расписание сеансов -->
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h3 class="mb-0">Расписание сеансов</h3>
+        </div>
+        <div class="card-body">
+            {% if sessions_by_date %}
+                <ul class="nav nav-tabs mb-4" id="sessionTabs" role="tablist">
+                    {% for date, sessions in sessions_by_date.items %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                    id="tab-{{ date|date:'Y-m-d' }}" 
+                                    data-bs-toggle="tab" 
+                                    data-bs-target="#day-{{ date|date:'Y-m-d' }}" 
+                                    type="button" 
+                                    role="tab">
+                                {{ date|date:"l, j E" }}
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+                
+                <div class="tab-content" id="sessionTabsContent">
+                    {% for date, sessions in sessions_by_date.items %}
+                        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                             id="day-{{ date|date:'Y-m-d' }}" 
+                             role="tabpanel" 
+                             aria-labelledby="tab-{{ date|date:'Y-m-d' }}">
+                            <div class="row">
+                                {% for session in sessions %}
+                                    <div class="col-md-6 col-lg-4 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h5 class="card-title mb-0">{{ session.hall.name }}</h5>
+                                                    <span class="badge bg-primary">{{ session.price }} ₽</span>
+                                                </div>
+                                                <p class="card-text">
+                                                    <i class="bi bi-clock"></i> {{ session.start_time|time:"H:i" }}<br>
+                                                    {% comment %} <small class="text-muted">Осталось мест: {{ session.hall.seats|subtract:session.booking_set.count }}</small> {% endcomment %}
+                                                </p>
+                                            </div>
+                                            <div class="card-footer bg-transparent">
+                                                {% if user.is_authenticated %}
+                                                    <a href="{% url 'book_ticket' session.id %}" class="btn btn-sm btn-success w-100">Забронировать</a>
+                                                {% else %}
+                                                    <a href="{% url 'login' %}?next={% url 'book_ticket' session.id %}" class="btn btn-sm btn-outline-primary w-100">Войти для бронирования</a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    На данный момент сеансов нет. Следите за обновлениями!
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Активация табов при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    const tabElms = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabElms.forEach(tabEl => {
+        tabEl.addEventListener('click', function(event) {
+            event.preventDefault();
+            const tab = new bootstrap.Tab(this);
+            tab.show();
+        });
+    });
+});
+</script>
+{% endblock %}
